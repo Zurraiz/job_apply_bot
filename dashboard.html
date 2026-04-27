@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Bot Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0c0c0f;
+    --surface: #13131a;
+    --surface2: #1a1a24;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8e6f0;
+    --muted: #7a788f;
+    --accent: #7c6af7;
+    --accent2: #a78bfa;
+    --green: #34d399;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --blue: #60a5fa;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.25rem 2rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .logo { display: flex; align-items: center; gap: 10px; font-size: 1.1rem; font-weight: 700; }
+  .logo-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 12px var(--accent);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .status-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    padding: 4px 12px;
+    border-radius: 100px;
+    border: 1px solid;
+  }
+  .status-badge.active { color: var(--green); border-color: rgba(52,211,153,.3); background: rgba(52,211,153,.08); }
+  .status-badge.idle   { color: var(--muted); border-color: var(--border); }
+
+  /* ── Layout ── */
+  main { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 61px); }
+
+  /* ── Sidebar ── */
+  aside {
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    padding: 1.5rem 1rem;
+  }
+  .nav-section { margin-bottom: 1.5rem; }
+  .nav-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: .1em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: .6rem;
+    padding: 0 .5rem;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: .55rem .75rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: .88rem;
+    font-weight: 600;
+    color: var(--muted);
+    transition: all .15s;
+    margin-bottom: 2px;
+  }
+  .nav-item:hover { color: var(--text); background: var(--surface2); }
+  .nav-item.active { color: var(--accent2); background: rgba(124,106,247,.12); }
+  .nav-icon { font-size: 14px; width: 18px; text-align: center; }
+
+  /* ── Main content ── */
+  .content { padding: 2rem; overflow-y: auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+  }
+  .card-title {
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: .05em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+
+  /* ── Stat grid ── */
+  .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 1.5rem; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+  }
+  .stat-label { font-size: .72rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 8px; }
+  .stat-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+  .stat-sub { font-size: .72rem; color: var(--muted); margin-top: 4px; font-family: 'DM Mono', monospace; }
+  .c-green { color: var(--green); }
+  .c-amber { color: var(--amber); }
+  .c-accent { color: var(--accent2); }
+  .c-blue  { color: var(--blue); }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  th {
+    text-align: left; padding: 8px 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: .65rem;
+    letter-spacing: .08em;
+    color: var(--muted);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  .badge {
+    display: inline-block;
+    font-size: .68rem; font-family: 'DM Mono', monospace;
+    padding: 2px 8px; border-radius: 100px; border: 1px solid;
+  }
+  .badge-green { color: var(--green); border-color: rgba(52,211,153,.3); background: rgba(52,211,153,.08); }
+  .badge-amber { color: var(--amber); border-color: rgba(251,191,36,.3); background: rgba(251,191,36,.08); }
+  .badge-red   { color: var(--red);   border-color: rgba(248,113,113,.3); background: rgba(248,113,113,.08); }
+  .badge-blue  { color: var(--blue);  border-color: rgba(96,165,250,.3);  background: rgba(96,165,250,.08); }
+  .badge-muted { color: var(--muted); border-color: var(--border); }
+
+  .score-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .score-bar {
+    height: 4px; border-radius: 2px; background: var(--surface2);
+    flex: 1; max-width: 80px; overflow: hidden;
+  }
+  .score-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); }
+  .score-num { font-family: 'DM Mono', monospace; font-size: .78rem; color: var(--accent2); }
+
+  /* ── Form ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1/-1; }
+  label { font-size: .78rem; color: var(--muted); font-weight: 600; font-family: 'DM Mono', monospace; }
+  input, select, textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: .82rem;
+    padding: .5rem .75rem;
+    outline: none;
+    transition: border .15s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: vertical; min-height: 80px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: .55rem 1.1rem; border-radius: 8px;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: .82rem;
+    cursor: pointer; border: none; transition: all .15s;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-outline {
+    background: transparent; color: var(--muted);
+    border: 1px solid var(--border2);
+  }
+  .btn-outline:hover { color: var(--text); border-color: var(--border2); background: var(--surface2); }
+  .btn-green { background: rgba(52,211,153,.15); color: var(--green); border: 1px solid rgba(52,211,153,.25); }
+  .btn-green:hover { background: rgba(52,211,153,.25); }
+
+  /* ── Activity feed ── */
+  .feed-item {
+    display: flex; gap: 12px; align-items: flex-start;
+    padding: .75rem 0; border-bottom: 1px solid var(--border);
+  }
+  .feed-item:last-child { border-bottom: none; }
+  .feed-dot {
+    width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0;
+  }
+  .feed-meta { font-size: .72rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 3px; }
+
+  /* ── Source pills ── */
+  .sources { display: flex; gap: 6px; flex-wrap: wrap; margin: .5rem 0 1.25rem; }
+  .source-pill {
+    padding: 4px 12px; border-radius: 100px;
+    font-size: .72rem; font-family: 'DM Mono', monospace;
+    border: 1px solid var(--border2); color: var(--muted);
+    cursor: pointer; transition: all .15s;
+  }
+  .source-pill.on { color: var(--accent2); border-color: rgba(167,139,250,.4); background: rgba(124,106,247,.12); }
+
+  /* ── Progress ring ── */
+  .ring-wrap { display: flex; align-items: center; gap: 1.5rem; }
+  svg.ring { overflow: visible; }
+  .ring-bg { fill: none; stroke: var(--surface2); }
+  .ring-fill { fill: none; stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset .6s; }
+
+  /* ── Donut chart ── */
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+
+  /* ── Timeline ── */
+  .timeline { position: relative; padding-left: 1.5rem; }
+  .timeline::before { content:''; position:absolute; left:5px; top:8px; bottom:8px; width:1px; background:var(--border); }
+  .tl-item { position: relative; padding-bottom: 1.2rem; }
+  .tl-dot { position:absolute; left:-1.18rem; top:4px; width:8px; height:8px; border-radius:50%; background:var(--accent); }
+  .tl-title { font-size:.85rem; font-weight:600; }
+  .tl-meta { font-size:.72rem; color:var(--muted); font-family:'DM Mono',monospace; margin-top:2px; }
+
+  /* ── Tabs ── */
+  .tabs { display:flex; gap:2px; margin-bottom:1.5rem; border-bottom:1px solid var(--border); }
+  .tab {
+    padding:.5rem 1rem; font-size:.82rem; font-weight:600;
+    color:var(--muted); cursor:pointer; border-bottom:2px solid transparent;
+    transition:all .15s;
+  }
+  .tab.active { color:var(--accent2); border-bottom-color:var(--accent); }
+
+  /* ── Run modal ── */
+  .modal-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,.7); z-index:100;
+    align-items:center; justify-content:center;
+  }
+  .modal-overlay.open { display:flex; }
+  .modal {
+    background:var(--surface); border:1px solid var(--border2);
+    border-radius:16px; padding:2rem; width:420px; max-width:90vw;
+  }
+  .modal-title { font-size:1.1rem; font-weight:700; margin-bottom:1rem; }
+  .log-box {
+    background:var(--bg); border:1px solid var(--border);
+    border-radius:8px; padding:1rem;
+    font-family:'DM Mono',monospace; font-size:.72rem;
+    color:var(--green); height:180px; overflow-y:auto; line-height:1.6;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot" id="statusDot"></div>
+    Job Application Bot
+  </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted)" id="nextRunLabel">Next run: 09:00 AM</span>
+    <span class="status-badge idle" id="statusBadge">Idle</span>
+    <button class="btn btn-primary" onclick="openRunModal()">▶ Run Now</button>
+  </div>
+</header>
+
+<main>
+  <aside>
+    <div class="nav-section">
+      <div class="nav-label">Overview</div>
+      <div class="nav-item active" onclick="showPage('dashboard',this)">
+        <span class="nav-icon">◈</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('applications',this)">
+        <span class="nav-icon">◎</span> Applications
+      </div>
+      <div class="nav-item" onclick="showPage('matches',this)">
+        <span class="nav-icon">◉</span> Today's Matches
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Settings</div>
+      <div class="nav-item" onclick="showPage('profile',this)">
+        <span class="nav-icon">◷</span> My Profile
+      </div>
+      <div class="nav-item" onclick="showPage('sources',this)">
+        <span class="nav-icon">◈</span> Job Sources
+      </div>
+      <div class="nav-item" onclick="showPage('config',this)">
+        <span class="nav-icon">⊞</span> Bot Config
+      </div>
+    </div>
+    <div class="nav-section" style="margin-top:auto">
+      <div class="nav-label">Stats · this week</div>
+      <div style="padding:.5rem;font-family:'DM Mono',monospace;font-size:.72rem;line-height:2;color:var(--muted)">
+        Scraped &nbsp;<span style="color:var(--text)">342</span><br>
+        Scored &nbsp;&nbsp;<span style="color:var(--text)">342</span><br>
+        Matched &nbsp;<span style="color:var(--text)">61</span><br>
+        Applied &nbsp;<span style="color:var(--green)">47</span><br>
+        Manual &nbsp;&nbsp;<span style="color:var(--amber)">14</span>
+      </div>
+    </div>
+  </aside>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem">
+        <div>
+          <h1 style="font-size:1.5rem;font-weight:800">Dashboard</h1>
+          <p style="color:var(--muted);font-size:.82rem;margin-top:2px">Monday, April 27 2026</p>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-outline" onclick="showPage('config',document.querySelector('.nav-item:nth-child(6)'))">⚙ Config</button>
+          <button class="btn btn-green" onclick="openRunModal()">▶ Run Bot</button>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-label">Applied today</div>
+          <div class="stat-value c-green">8</div>
+          <div class="stat-sub">of 10 daily limit</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Jobs scraped</div>
+          <div class="stat-value c-blue">124</div>
+          <div class="stat-sub">4 sources · last run</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg match score</div>
+          <div class="stat-value c-accent">7.4</div>
+          <div class="stat-sub">out of 10</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total applied</div>
+          <div class="stat-value c-amber">47</div>
+          <div class="stat-sub">this week</div>
+        </div>
+      </div>
+
+      <div class="chart-row">
+        <div class="card">
+          <div class="card-title">Daily applications</div>
+          <div id="barChart" style="height:130px;display:flex;align-items:flex-end;gap:6px;padding-top:.5rem"></div>
+          <div style="display:flex;gap:6px;margin-top:6px" id="barLabels"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Applications by source</div>
+          <div style="display:flex;align-items:center;gap:1.5rem">
+            <svg width="110" height="110" viewBox="0 0 110 110">
+              <circle cx="55" cy="55" r="42" fill="none" stroke="var(--surface2)" stroke-width="14"/>
+              <circle cx="55" cy="55" r="42" fill="none" stroke="var(--accent)" stroke-width="14"
+                stroke-dasharray="264" stroke-dashoffset="66" stroke-linecap="round"
+                transform="rotate(-90 55 55)"/>
+              <circle cx="55" cy="55" r="42" fill="none" stroke="var(--green)" stroke-width="14"
+                stroke-dasharray="264" stroke-dashoffset="198" stroke-linecap="round"
+                transform="rotate(180 55 55)"/>
+              <text x="55" y="59" text-anchor="middle" fill="var(--text)" font-family="'Syne'" font-weight="800" font-size="16">47</text>
+            </svg>
+            <div style="font-size:.78rem;font-family:'DM Mono',monospace;line-height:2">
+              <div><span style="color:var(--accent)">■</span> LinkedIn &nbsp;&nbsp;<span style="color:var(--text)">21</span></div>
+              <div><span style="color:var(--green)">■</span> Indeed &nbsp;&nbsp;&nbsp;<span style="color:var(--text)">14</span></div>
+              <div><span style="color:var(--amber)">■</span> Glassdoor <span style="color:var(--text)">8</span></div>
+              <div><span style="color:var(--blue)">■</span> Remote.co <span style="color:var(--text)">4</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Recent activity</div>
+        <div id="feed"></div>
+      </div>
+    </div>
+
+    <!-- APPLICATIONS -->
+    <div class="page" id="page-applications">
+      <h1 style="font-size:1.5rem;font-weight:800;margin-bottom:1.5rem">Applications</h1>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+          <div class="tabs" style="margin-bottom:0;border-bottom:none">
+            <div class="tab active" onclick="filterApps('all',this)">All (47)</div>
+            <div class="tab" onclick="filterApps('Applied',this)">Applied (33)</div>
+            <div class="tab" onclick="filterApps('Manual',this)">Manual (14)</div>
+          </div>
+          <input placeholder="Search..." style="width:200px" id="appSearch" oninput="renderApps()">
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Role</th>
+                <th>Company</th>
+                <th>Source</th>
+                <th>Score</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="appsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- MATCHES -->
+    <div class="page" id="page-matches">
+      <h1 style="font-size:1.5rem;font-weight:800;margin-bottom:.5rem">Today's Matches</h1>
+      <p style="color:var(--muted);font-size:.82rem;margin-bottom:1.5rem">AI-scored jobs ready to apply. Toggle to skip any before the next run.</p>
+      <div id="matchCards"></div>
+    </div>
+
+    <!-- PROFILE -->
+    <div class="page" id="page-profile">
+      <h1 style="font-size:1.5rem;font-weight:800;margin-bottom:1.5rem">My Profile</h1>
+      <div class="card">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Full Name</label>
+            <input value="Alex Johnson" id="pName">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input value="alex@email.com" id="pEmail">
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input value="+1 555 000 0000" id="pPhone">
+          </div>
+          <div class="form-group">
+            <label>Location Preference</label>
+            <input value="Remote" id="pLocation">
+          </div>
+          <div class="form-group">
+            <label>Years of Experience</label>
+            <input type="number" value="5" id="pExp">
+          </div>
+          <div class="form-group">
+            <label>Min Salary (USD)</label>
+            <input type="number" value="100000" id="pSalary">
+          </div>
+          <div class="form-group full">
+            <label>Target Roles (comma-separated)</label>
+            <input value="Software Engineer, Backend Developer, Python Developer" id="pRoles">
+          </div>
+          <div class="form-group full">
+            <label>Skills (comma-separated)</label>
+            <textarea id="pSkills">Python, Django, FastAPI, PostgreSQL, Docker, AWS, Redis, GraphQL</textarea>
+          </div>
+          <div class="form-group full">
+            <label>Resume Path</label>
+            <input value="data/resume.pdf" id="pResume">
+          </div>
+          <div class="form-group full" style="margin-top:.5rem">
+            <button class="btn btn-primary" style="width:fit-content" onclick="saveProfile()">Save Profile</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SOURCES -->
+    <div class="page" id="page-sources">
+      <h1 style="font-size:1.5rem;font-weight:800;margin-bottom:1.5rem">Job Sources</h1>
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-title">Active sources</div>
+        <div class="sources" id="sourcePills">
+          <div class="source-pill on" onclick="toggleSource(this)">LinkedIn</div>
+          <div class="source-pill on" onclick="toggleSource(this)">Indeed</div>
+          <div class="source-pill on" onclick="toggleSource(this)">Glassdoor</div>
+          <div class="source-pill on" onclick="toggleSource(this)">Remote.co</div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-title">LinkedIn credentials</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Email</label>
+            <input value="alex@email.com">
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" value="••••••••">
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Search keywords</div>
+        <textarea style="width:100%;min-height:80px">Python developer
+Backend engineer
+Software engineer remote
+API developer</textarea>
+        <div style="margin-top:1rem">
+          <button class="btn btn-primary">Save Sources</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIG -->
+    <div class="page" id="page-config">
+      <h1 style="font-size:1.5rem;font-weight:800;margin-bottom:1.5rem">Bot Config</h1>
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-title">Application settings</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Max applications / day</label>
+            <input type="number" value="10" id="cfgN">
+          </div>
+          <div class="form-group">
+            <label>Min match score (0–10)</label>
+            <input type="number" step="0.5" value="6.5" id="cfgScore">
+          </div>
+          <div class="form-group">
+            <label>Daily run time</label>
+            <input type="time" value="09:00" id="cfgTime">
+          </div>
+          <div class="form-group">
+            <label>Mode</label>
+            <select id="cfgDry">
+              <option>Dry run (no real applications)</option>
+              <option>Live (apply for real)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Browser mode</label>
+            <select>
+              <option>Headless (background)</option>
+              <option>Visible (watch it work)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Anthropic API Key</label>
+            <input type="password" value="sk-ant-••••••••" id="cfgKey">
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:1rem">
+        <div class="card-title">Google Sheets</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Sheet name</label>
+            <input value="Job Applications Bot">
+          </div>
+          <div class="form-group">
+            <label>Service account JSON path</label>
+            <input value="config/google_service_account.json">
+          </div>
+          <div class="form-group full">
+            <button class="btn btn-outline" style="width:fit-content" onclick="testSheets()">⚡ Test Connection</button>
+            <span id="sheetsStatus" style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted);margin-top:6px;display:block"></span>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="saveConfig()">Save Config</button>
+    </div>
+
+  </div>
+</main>
+
+<!-- Run Modal -->
+<div class="modal-overlay" id="runModal">
+  <div class="modal">
+    <div class="modal-title">▶ Run Bot Now</div>
+    <p style="color:var(--muted);font-size:.82rem;margin-bottom:1rem">Kick off a job search & application cycle immediately.</p>
+    <div class="log-box" id="runLog">Waiting to start...</div>
+    <div style="display:flex;gap:8px;margin-top:1rem;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeRunModal()">Close</button>
+      <button class="btn btn-primary" id="startBtn" onclick="startRun()">▶ Start</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Sample data ────────────────────────────────────────────────────────────
+const APPS = [
+  {date:"Apr 27",title:"Senior Python Developer",company:"Stripe",source:"LinkedIn",score:9.1,status:"Applied"},
+  {date:"Apr 27",title:"Backend Engineer",company:"Linear",source:"Remote.co",score:8.7,status:"Applied"},
+  {date:"Apr 27",title:"Software Engineer II",company:"Notion",source:"Indeed",score:8.2,status:"Applied"},
+  {date:"Apr 26",title:"API Developer",company:"Twilio",source:"Glassdoor",score:7.8,status:"Applied"},
+  {date:"Apr 26",title:"Platform Engineer",company:"Vercel",source:"LinkedIn",score:7.5,status:"Manual needed"},
+  {date:"Apr 26",title:"Backend Developer",company:"Figma",source:"LinkedIn",score:7.3,status:"Applied"},
+  {date:"Apr 25",title:"Software Engineer",company:"OpenAI",source:"Indeed",score:7.1,status:"Manual needed"},
+  {date:"Apr 25",title:"Python Dev",company:"Hugging Face",source:"Remote.co",score:6.9,status:"Applied"},
+  {date:"Apr 25",title:"Full Stack Engineer",company:"Supabase",source:"Glassdoor",score:6.7,status:"Manual needed"},
+  {date:"Apr 24",title:"DevOps Engineer",company:"Cloudflare",source:"LinkedIn",score:6.5,status:"Applied"},
+];
+
+const MATCHES_TODAY = [
+  {title:"Staff Engineer",company:"Anthropic",source:"LinkedIn",score:9.4,reason:"Strong Python + ML overlap with team needs",skip:false},
+  {title:"Backend Lead",company:"Raycast",source:"Remote.co",score:8.9,reason:"FastAPI + PostgreSQL are primary stack",skip:false},
+  {title:"Senior Backend Dev",company:"Cal.com",source:"Indeed",score:8.5,reason:"Open source project uses your tech stack",skip:false},
+  {title:"Platform Engineer",company:"Fly.io",source:"LinkedIn",score:7.9,reason:"Docker + cloud infra perfectly matched",skip:true},
+  {title:"API Developer",company:"Resend",source:"Remote.co",score:7.6,reason:"Node API role, minor skill mismatch",skip:true},
+];
+
+const DAILY = [
+  {day:"Mon",n:8},{day:"Tue",n:10},{day:"Wed",n:6},{day:"Thu",n:10},
+  {day:"Fri",n:9},{day:"Sat",n:4},{day:"Sun",n:0},
+];
+
+const FEED_ITEMS = [
+  {dot:"var(--green)",text:'Applied to <b>Senior Python Developer</b> at Stripe',meta:'Today · 9:04 AM · score 9.1/10'},
+  {dot:"var(--green)",text:'Applied to <b>Backend Engineer</b> at Linear',meta:'Today · 9:02 AM · score 8.7/10'},
+  {dot:"var(--amber)",text:'<b>Platform Engineer</b> at Vercel — manual application needed',meta:'Yesterday · 9:11 AM · score 7.5/10'},
+  {dot:"var(--green)",text:'Applied to <b>Backend Developer</b> at Figma',meta:'Yesterday · 9:08 AM · score 7.3/10'},
+  {dot:"var(--blue)",text:'Scraped 124 jobs across 4 sources',meta:'Today · 9:00 AM'},
+];
+
+// ── Page navigation ────────────────────────────────────────────────────────
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+}
+
+// ── Bar chart ──────────────────────────────────────────────────────────────
+function renderBarChart() {
+  const max = Math.max(...DAILY.map(d => d.n));
+  const wrap = document.getElementById('barChart');
+  const labels = document.getElementById('barLabels');
+  wrap.innerHTML = labels.innerHTML = '';
+  DAILY.forEach(d => {
+    const h = max > 0 ? (d.n / max) * 110 : 0;
+    const bar = document.createElement('div');
+    bar.style.cssText = `flex:1;background:${d.day==='Mon'?'var(--accent)':'var(--surface2)'};height:${h}px;border-radius:4px 4px 0 0;min-height:3px;transition:height .4s`;
+    bar.title = `${d.day}: ${d.n} applied`;
+    wrap.appendChild(bar);
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'flex:1;text-align:center;font-size:.6rem;color:var(--muted);font-family:DM Mono,monospace';
+    lbl.textContent = d.day;
+    labels.appendChild(lbl);
+  });
+}
+
+// ── Feed ──────────────────────────────────────────────────────────────────
+function renderFeed() {
+  const feed = document.getElementById('feed');
+  feed.innerHTML = FEED_ITEMS.map(f => `
+    <div class="feed-item">
+      <div class="feed-dot" style="background:${f.dot}"></div>
+      <div>
+        <div style="font-size:.82rem">${f.text}</div>
+        <div class="feed-meta">${f.meta}</div>
+      </div>
+    </div>`).join('');
+}
+
+// ── Apps table ────────────────────────────────────────────────────────────
+let appFilter = 'all';
+function filterApps(f, el) {
+  appFilter = f;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderApps();
+}
+function renderApps() {
+  const q = (document.getElementById('appSearch')?.value || '').toLowerCase();
+  const rows = APPS.filter(a => {
+    const matchF = appFilter === 'all' || a.status.includes(appFilter);
+    const matchQ = !q || a.title.toLowerCase().includes(q) || a.company.toLowerCase().includes(q);
+    return matchF && matchQ;
+  });
+  document.getElementById('appsTable').innerHTML = rows.map(a => `
+    <tr>
+      <td style="color:var(--muted);font-family:'DM Mono',monospace;font-size:.72rem">${a.date}</td>
+      <td style="font-weight:600">${a.title}</td>
+      <td style="color:var(--muted)">${a.company}</td>
+      <td><span class="badge badge-blue">${a.source}</span></td>
+      <td>
+        <div class="score-bar-wrap">
+          <div class="score-bar"><div class="score-bar-fill" style="width:${a.score*10}%"></div></div>
+          <span class="score-num">${a.score}</span>
+        </div>
+      </td>
+      <td><span class="badge ${a.status==='Applied'?'badge-green':'badge-amber'}">${a.status}</span></td>
+    </tr>`).join('');
+}
+
+// ── Match cards ───────────────────────────────────────────────────────────
+function renderMatches() {
+  document.getElementById('matchCards').innerHTML = MATCHES_TODAY.map((m,i) => `
+    <div class="card" style="margin-bottom:10px;opacity:${m.skip?.75:1};transition:opacity .2s" id="mc${i}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-weight:700;font-size:.95rem">${m.title}
+            <span class="badge badge-blue" style="margin-left:8px">${m.source}</span>
+          </div>
+          <div style="color:var(--muted);font-size:.8rem;margin-top:3px">${m.company}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="score-bar-wrap">
+            <div class="score-bar" style="max-width:60px"><div class="score-bar-fill" style="width:${m.score*10}%"></div></div>
+            <span class="score-num" style="font-size:.9rem">${m.score}</span>
+          </div>
+          <button class="btn ${m.skip?'btn-outline':'btn-green'}" style="font-size:.72rem;padding:4px 10px" onclick="toggleSkip(${i})">
+            ${m.skip?'Include':'Skip'}
+          </button>
+        </div>
+      </div>
+      <div style="color:var(--muted);font-size:.78rem;margin-top:.5rem;font-style:italic">"${m.reason}"</div>
+    </div>`).join('');
+}
+
+function toggleSkip(i) {
+  MATCHES_TODAY[i].skip = !MATCHES_TODAY[i].skip;
+  renderMatches();
+}
+
+// ── Source pills ──────────────────────────────────────────────────────────
+function toggleSource(el) { el.classList.toggle('on'); }
+
+// ── Run modal ─────────────────────────────────────────────────────────────
+function openRunModal() {
+  document.getElementById('runModal').classList.add('open');
+}
+function closeRunModal() {
+  document.getElementById('runModal').classList.remove('open');
+  running = false;
+}
+
+let running = false;
+const runLogs = [
+  '$ python bot.py',
+  'Loading config...',
+  'Resume loaded: 3,412 chars',
+  'Scraping LinkedIn for "Python developer"...',
+  'LinkedIn: found 18 jobs',
+  'Scraping Indeed for "Backend engineer"...',
+  'Indeed: found 21 jobs',
+  'Scraping Glassdoor...',
+  'Glassdoor: found 14 jobs',
+  'Scraping Remote.co...',
+  'Remote.co: found 9 jobs',
+  'Total raw: 62 jobs | Fresh (unseen): 38',
+  'Scoring jobs with Claude AI...',
+  'Score: Stripe — Senior Python Dev → 9.1/10',
+  'Score: Linear — Backend Engineer → 8.7/10',
+  'Score: Vercel — Platform Engineer → 7.5/10',
+  'Applying to top 10 matches...',
+  '[Applied] Senior Python Developer @ Stripe (LinkedIn) — score 9.1',
+  '[Applied] Backend Engineer @ Linear (Remote.co) — score 8.7',
+  '[Manual] Platform Engineer @ Vercel — no Easy Apply',
+  'Logging to Google Sheets... ✓',
+  'Done. Applied to 8 jobs today.',
+];
+
+function startRun() {
+  if (running) return;
+  running = true;
+  document.getElementById('startBtn').disabled = true;
+  const box = document.getElementById('runLog');
+  box.innerHTML = '';
+  let i = 0;
+  document.getElementById('statusBadge').className = 'status-badge active';
+  document.getElementById('statusBadge').textContent = 'Running';
+  const iv = setInterval(() => {
+    if (i >= runLogs.length) {
+      clearInterval(iv);
+      document.getElementById('statusBadge').className = 'status-badge idle';
+      document.getElementById('statusBadge').textContent = 'Idle';
+      document.getElementById('startBtn').disabled = false;
+      running = false;
+      return;
+    }
+    box.innerHTML += runLogs[i] + '\n';
+    box.scrollTop = box.scrollHeight;
+    i++;
+  }, 400);
+}
+
+// ── Save stubs ────────────────────────────────────────────────────────────
+function saveProfile() { alert('Profile saved to config/config.json'); }
+function saveConfig()  { alert('Config saved!'); }
+function testSheets() {
+  const s = document.getElementById('sheetsStatus');
+  s.textContent = 'Connecting...';
+  setTimeout(() => { s.style.color='var(--green)'; s.textContent='✓ Connected to "Job Applications Bot"'; }, 1200);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+renderBarChart();
+renderFeed();
+renderApps();
+renderMatches();
+</script>
+</body>
+</html>

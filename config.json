@@ -1,0 +1,50 @@
+{
+  "_comment": "Job Application Bot — fill in all fields before running.",
+
+  "anthropic_api_key": "sk-ant-YOUR_KEY_HERE",
+
+  "resume_path": "data/resume.pdf",
+
+  "profile": {
+    "name": "Your Full Name",
+    "email": "you@email.com",
+    "phone": "+1 555 000 0000",
+    "location_preference": "Remote",
+    "experience_years": 5,
+    "target_roles": [
+      "Software Engineer",
+      "Backend Developer",
+      "Python Developer"
+    ],
+    "skills": [
+      "Python", "Django", "FastAPI", "PostgreSQL", "Docker", "AWS"
+    ],
+    "min_salary": 100000
+  },
+
+  "search_keywords": [
+    "Python developer",
+    "Backend engineer",
+    "Software engineer remote"
+  ],
+
+  "applications_per_day": 10,
+  "min_match_score": 6.5,
+
+  "dry_run": true,
+  "_dry_run_note": "Set to false when ready to actually submit applications.",
+
+  "headless": true,
+  "_headless_note": "Set to false to watch the browser while it applies.",
+
+  "linkedin_email": "your@email.com",
+  "linkedin_password": "YOUR_LINKEDIN_PASSWORD",
+
+  "google_service_account_path": "config/google_service_account.json",
+  "google_sheet_name": "Job Applications Bot",
+
+  "schedule": {
+    "run_daily_at": "09:00",
+    "timezone": "America/New_York"
+  }
+}
