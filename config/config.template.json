@@ -1,13 +1,13 @@
 {
-  "_comment": "Job Application Bot — fill in all fields before running.",
+  "_comment": "Job Application Bot — safe template with placeholder values.",
 
-  "anthropic_api_key": "sk-ant-YOUR_KEY_HERE",
+  "anthropic_api_key": "YOUR_ANTHROPIC_API_KEY",
 
   "resume_path": "data/resume.pdf",
 
   "profile": {
     "name": "Your Full Name",
-    "email": "you@email.com",
+    "email": "you@example.com",
     "phone": "+1 555 000 0000",
     "location_preference": "Remote",
     "experience_years": 5,
@@ -17,7 +17,12 @@
       "Python Developer"
     ],
     "skills": [
-      "Python", "Django", "FastAPI", "PostgreSQL", "Docker", "AWS"
+      "Python",
+      "Django",
+      "FastAPI",
+      "PostgreSQL",
+      "Docker",
+      "AWS"
     ],
     "min_salary": 100000
   },
@@ -32,12 +37,9 @@
   "min_match_score": 6.5,
 
   "dry_run": true,
-  "_dry_run_note": "Set to false when ready to actually submit applications.",
-
   "headless": true,
-  "_headless_note": "Set to false to watch the browser while it applies.",
 
-  "linkedin_email": "your@email.com",
+  "linkedin_email": "you@example.com",
   "linkedin_password": "YOUR_LINKEDIN_PASSWORD",
 
   "google_service_account_path": "config/google_service_account.json",

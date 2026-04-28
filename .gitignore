@@ -1,0 +1,14 @@
+# Secrets
+config/config.json
+config/google_service_account.json
+
+# Runtime data
+data/
+logs/
+
+# Python
+__pycache__/
+*.pyc
+.env
+venv/
+.venv/

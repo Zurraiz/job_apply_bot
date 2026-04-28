@@ -3,9 +3,14 @@ Job Application Bot — searches LinkedIn, Indeed, Glassdoor, Remote.co
 and auto-applies to top N matches per day, logging results to Google Sheets.
 """
 
-import os, json, time, random, datetime, re, logging
+import os
+import json, time, random, datetime, re, logging
 from pathlib import Path
 from typing import Optional
+
+os.makedirs("logs", exist_ok=True)
+os.makedirs("data", exist_ok=True)
+os.makedirs("config", exist_ok=True)
 
 # ── Logging ─────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -45,7 +50,7 @@ def parse_resume(path: str) -> str:
         return f.read()
 
 # ── AI Job Matcher ────────────────────────────────────────────────────────────
-def score_job(job: dict, profile: dict, client) -> float:
+def score_job(job: dict, profile: dict, client) -> tuple[float, str]:
     """
     Use Claude to score how well a job matches the user's profile.
     Returns a float 0–10.
@@ -333,7 +338,7 @@ def job_key(job: dict) -> str:
     return f"{job.get('title','').lower()}|{job.get('company','').lower()}"
 
 # ── Apply (Easy Apply simulation) ────────────────────────────────────────────
-def apply_to_job(job: dict, cover_letter: str, profile: dict, cfg: dict) -> bool:
+def apply_to_job(job: dict, cover_letter: str, profile: dict, cfg: dict, linkedin_page=None) -> bool:
     """
     Attempt to apply to a job. 
     For LinkedIn Easy Apply, uses Playwright for browser automation.
@@ -345,59 +350,55 @@ def apply_to_job(job: dict, cover_letter: str, profile: dict, cfg: dict) -> bool
         return True
 
     if source == "LinkedIn":
-        return _linkedin_easy_apply(job, cover_letter, profile, cfg)
+        return _linkedin_easy_apply(job, cover_letter, profile, cfg, linkedin_page)
     elif source == "Indeed":
         return _indeed_apply(job, cover_letter, profile, cfg)
     else:
         log.info(f"Manual application needed for {source}: {job['url']}")
         return False  # Will be logged as "Manual"
 
-def _linkedin_easy_apply(job, cover_letter, profile, cfg) -> bool:
-    """Use Playwright to click LinkedIn Easy Apply."""
+def _linkedin_login(page, cfg) -> None:
+    page.goto("https://www.linkedin.com/login")
+    page.fill("#username", cfg["linkedin_email"])
+    page.fill("#password", cfg["linkedin_password"])
+    page.click("button[type=submit]")
+    page.wait_for_load_state("networkidle")
+
+
+def _linkedin_easy_apply(job, cover_letter, profile, cfg, page) -> bool:
+    """Use an existing Playwright page to click LinkedIn Easy Apply."""
     try:
-        from playwright.sync_api import sync_playwright
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=cfg.get("headless", True))
-            ctx = browser.new_context()
-            page = ctx.new_page()
-
-            # Log in
-            page.goto("https://www.linkedin.com/login")
-            page.fill("#username", cfg["linkedin_email"])
-            page.fill("#password", cfg["linkedin_password"])
-            page.click("button[type=submit]")
-            page.wait_for_load_state("networkidle")
-
-            # Navigate to job
-            page.goto(job["url"])
-            page.wait_for_load_state("networkidle")
-
-            # Click Easy Apply
-            btn = page.query_selector("button.jobs-apply-button")
-            if not btn or "easy apply" not in (btn.inner_text() or "").lower():
-                log.warning("No Easy Apply button found.")
-                browser.close()
-                return False
-
-            btn.click()
-            page.wait_for_timeout(2000)
-
-            # Fill phone if asked
-            phone_input = page.query_selector("input[id*='phoneNumber']")
-            if phone_input:
-                phone_input.fill(profile.get("phone", ""))
-
-            # Submit (simplified — real flow may have multiple steps)
-            submit = page.query_selector("button[aria-label='Submit application']")
-            if submit:
-                submit.click()
-                page.wait_for_timeout(2000)
-                log.info(f"Applied via LinkedIn Easy Apply: {job['title']}")
-                browser.close()
-                return True
-
-            browser.close()
+        if page is None:
+            log.error("LinkedIn page not initialized.")
             return False
+
+        # Navigate to job
+        page.goto(job["url"])
+        page.wait_for_load_state("networkidle")
+
+        # Click Easy Apply
+        btn = page.query_selector("button.jobs-apply-button")
+        if not btn or "easy apply" not in (btn.inner_text() or "").lower():
+            log.warning("No Easy Apply button found.")
+            return False
+
+        btn.click()
+        page.wait_for_timeout(2000)
+
+        # Fill phone if asked
+        phone_input = page.query_selector("input[id*='phoneNumber']")
+        if phone_input:
+            phone_input.fill(profile.get("phone", ""))
+
+        # Submit (simplified — real flow may have multiple steps)
+        submit = page.query_selector("button[aria-label='Submit application']")
+        if submit:
+            submit.click()
+            page.wait_for_timeout(2000)
+            log.info(f"Applied via LinkedIn Easy Apply: {job['title']}")
+            return True
+
+        return False
     except Exception as e:
         log.error(f"LinkedIn Easy Apply failed: {e}")
         return False
@@ -488,22 +489,51 @@ def run():
     log.info(f"Top matches to apply to: {len(top)}")
 
     applied_count = 0
-    for score, reason, job in top:
-        key = job_key(job)
-        seen.add(key)
 
-        cover_letter = generate_cover_letter(job, profile, resume_text, client)
-        success = apply_to_job(job, cover_letter, profile, cfg)
-        status = "Applied" if success else "Manual needed"
+    def process_applications(linkedin_page=None):
+        nonlocal applied_count
+        for score, reason, job in top:
+            key = job_key(job)
+            seen.add(key)
 
-        log_to_sheets(job, score, reason, status, cfg)
-        applied_count += 1
+            cover_letter = generate_cover_letter(job, profile, resume_text, client)
+            success = apply_to_job(job, cover_letter, profile, cfg, linkedin_page)
+            status = "Applied" if success else "Manual needed"
 
-        log.info(
-            f"[{status}] {job['title']} @ {job['company']} "
-            f"({job['source']}) — score {score:.1f}/10"
-        )
-        time.sleep(random.uniform(3, 7))  # polite delay between applications
+            log_to_sheets(job, score, reason, status, cfg)
+            if success:
+                applied_count += 1
+
+            log.info(
+                f"[{status}] {job['title']} @ {job['company']} "
+                f"({job['source']}) — score {score:.1f}/10"
+            )
+            time.sleep(random.uniform(3, 7))  # polite delay between applications
+
+    needs_linkedin_session = (not cfg.get("dry_run", True)) and any(
+        job.get("source") == "LinkedIn" for _, _, job in top
+    )
+
+    if needs_linkedin_session:
+        from playwright.sync_api import sync_playwright
+
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=cfg.get("headless", True))
+                context = browser.new_context()
+                linkedin_page = context.new_page()
+
+                # Log in once and reuse the same page for all LinkedIn applications.
+                _linkedin_login(linkedin_page, cfg)
+                try:
+                    process_applications(linkedin_page)
+                finally:
+                    browser.close()
+        except Exception as e:
+            log.error(f"LinkedIn session setup failed: {e}")
+            process_applications(None)
+    else:
+        process_applications(None)
 
     save_seen_jobs(seen)
 
